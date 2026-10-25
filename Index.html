@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Block Blast by ardx</title>
+    <style>
+        :root {
+            --bg-top: #2563eb;
+            --bg-bottom: #1d4ed8;
+            --board-border: #1e3a8a;
+            --board-bg: #0f172a;
+            --cell-empty: #1e293b;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Arial Black', 'Impact', sans-serif;
+            background: linear-gradient(180deg, #3b82f6 0%, #1d4ed8 100%);
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .game-wrapper {
+            width: 100%;
+            max-width: 420px;
+            height: 100vh;
+            max-height: 850px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 16px;
+            position: relative;
+        }
+
+        /* OVERLAY SCREENS */
+        .screen {
+            position: absolute;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.94);
+            backdrop-filter: blur(12px);
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.25s ease;
+        }
+
+        .screen.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .crown-icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            filter: drop-shadow(0 4px 10px rgba(250, 204, 21, 0.6));
+            animation: float 2s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        .title-logo {
+            font-size: 3.4rem;
+            font-weight: 900;
+            line-height: 0.95;
+            text-align: center;
+            color: #ffffff;
+            text-shadow: 
+                0 4px 0 #1d4ed8,
+                0 8px 0 #1e3a8a,
+                0 12px 20px rgba(0,0,0,0.5);
+            letter-spacing: -1px;
+            margin-bottom: 12px;
+        }
+
+        .author-badge {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 6px 18px;
+            border-radius: 30px;
+            font-size: 0.85rem;
+            letter-spacing: 3px;
+            color: #93c5fd;
+            font-weight: bold;
+            margin-bottom: 40px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .btn-play {
+            background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
+            border: none;
+            border-bottom: 6px solid #14532d;
+            color: white;
+            padding: 16px 52px;
+            font-size: 1.5rem;
+            font-weight: 900;
+            border-radius: 40px;
+            cursor: pointer;
+            box-shadow: 0 10px 25px rgba(22, 163, 74, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            transition: all 0.1s ease;
+        }
+
+        .btn-play:active {
+            transform: translateY(4px);
+            border-bottom: 2px solid #14532d;
+            box-shadow: 0 4px 12px rgba(22, 163, 74, 0.4);
+        }
+
+        /* HEADER SKOR */
+        .header {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .score-pill {
+            background: rgba(15, 23, 42, 0.6);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            padding: 8px 20px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        }
+
+        .score-label {
+            font-size: 0.7rem;
+            color: #93c5fd;
+            letter-spacing: 1px;
+        }
+
+        .score-num {
+            font-size: 2rem;
+            color: #facc15;
+            font-weight: 900;
+        }
+
+        /* BOARD GAME (TANPA DOUBLE GRID) */
+        .board-container {
+            width: 100%;
+            aspect-ratio: 1;
+            background: var(--board-bg);
+            border: 6px solid var(--board-border);
+            border-radius: 16px;
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(8, 1fr);
+            gap: 2px;
+            padding: 2px;
+            position: relative;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            overflow: hidden;
+        }
+
+        .cell {
+            background-color: var(--cell-empty);
+            border-radius: 2px;
+            position: relative;
+        }
+
+        .cell.highlight {
+            background-color: rgba(255, 255, 255, 0.35) !important;
+            box-shadow: inset 0 0 8px #ffffff;
+            z-index: 5;
+        }
+
+        /* BLOK KOTAK SEAMLESS CERAH */
+        .block-unit {
+            width: 100%;
+            height: 100%;
+            border-radius: 3px;
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        /* Inner Bevel 3D Glossy */
+        .block-unit::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-top: 3px solid rgba(255, 255, 255, 0.5);
+            border-left: 3px solid rgba(255, 255, 255, 0.5);
+            border-bottom: 3px solid rgba(0, 0, 0, 0.35);
+            border-right: 3px solid rgba(0, 0, 0, 0.35);
+            border-radius: 3px;
+        }
+
+        /* WARNA CERAH HIGH-CONTRAST */
+        .c-purple { background: #a855f7; }
+        .c-cyan   { background: #06b6d4; }
+        .c-green  { background: #22c55e; }
+        .c-yellow { background: #eab308; }
+        .c-orange { background: #f97316; }
+        .c-red    { background: #ef4444; }
+
+        /* NAMPAN BALOK */
+        .tray-panel {
+            width: 100%;
+            height: 130px;
+            background: rgba(15, 23, 42, 0.4);
+            border: 2px solid rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+        }
+
+        .holder {
+            width: 95px;
+            height: 95px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .drag-clone {
+            position: fixed;
+            pointer-events: none;
+            z-index: 1000;
+            transform: translate(-50%, -50%);
+            filter: drop-shadow(0 15px 20px rgba(0,0,0,0.6));
+        }
+
+        /* ANIMASI TEBASAN SLASH LASER */
+        .slash-h {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 12.5%;
+            background: linear-gradient(90deg, transparent, #ffffff, #38bdf8, #ffffff, transparent);
+            box-shadow: 0 0 20px #38bdf8, 0 0 40px #ffffff;
+            z-index: 50;
+            pointer-events: none;
+            animation: slashEffect 0.3s ease-out forwards;
+        }
+
+        .slash-v {
+            position: absolute;
+            top: 0;
+            height: 100%;
+            width: 12.5%;
+            background: linear-gradient(180deg, transparent, #ffffff, #38bdf8, #ffffff, transparent);
+            box-shadow: 0 0 20px #38bdf8, 0 0 40px #ffffff;
+            z-index: 50;
+            pointer-events: none;
+            animation: slashEffect 0.3s ease-out forwards;
+        }
+
+        @keyframes slashEffect {
+            0% { opacity: 0; transform: scale(0.6); }
+            50% { opacity: 1; transform: scale(1.05); }
+            100% { opacity: 0; transform: scale(1); }
+        }
+
+        .effect-text {
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0);
+            font-size: 3.2rem;
+            font-weight: 900;
+            color: #facc15;
+            text-shadow: 0 4px 0 #1e3a8a, 0 0 25px #facc15;
+            z-index: 150;
+            pointer-events: none;
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.27);
+        }
+
+        .effect-text.show {
+            transform: translate(-50%, -50%) scale(1);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="game-wrapper">
+        <!-- START MENU SCREEN -->
+        <div id="start-screen" class="screen">
+            <div class="crown-icon">👑</div>
+            <div class="title-logo">BLOCK<br>BLAST</div>
+            <div class="author-badge">BY ARDX</div>
+            <button class="btn-play" onclick="startGame()">Mulai Main</button>
+        </div>
+
+        <!-- GAME OVER SCREEN -->
+        <div id="gameover-screen" class="screen hidden">
+            <div class="title-logo" style="font-size: 2.8rem; color: #ef4444; text-shadow: 0 4px 0 #7f1d1d;">GAME OVER</div>
+            <div style="margin: 20px 0; text-align: center;">
+                <div class="score-label" style="font-size: 0.9rem;">SKOR AKHIR</div>
+                <div id="final-score" class="score-num" style="font-size: 3.5rem;">0</div>
+            </div>
+            <button class="btn-play" onclick="startGame()">Coba Lagi</button>
+        </div>
+
+        <div id="effect-text" class="effect-text">AWESOME!</div>
+
+        <!-- HEADER SKOR -->
+        <div class="header">
+            <div class="score-pill">
+                <div class="score-label">BEST</div>
+                <div id="high-score" class="score-num">0</div>
+            </div>
+            <div class="score-pill" style="min-width: 130px;">
+                <div class="score-label">SCORE</div>
+                <div id="score" class="score-num" style="color: #38bdf8;">0</div>
+            </div>
+        </div>
+
+        <!-- PAPAN BOARD 8x8 -->
+        <div id="board" class="board-container"></div>
+
+        <!-- TRAY PENAMPUNG BLOK -->
+        <div class="tray-panel">
+            <div class="holder" data-index="0"></div>
+            <div class="holder" data-index="1"></div>
+            <div class="holder" data-index="2"></div>
+        </div>
+    </div>
+
+    <script>
+        // WEB AUDIO SYNTHESIZER SOUNDS
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'pickup') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(320, now);
+                osc.frequency.exponentialRampToValueAtTime(640, now + 0.08);
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+                osc.start(now);
+                osc.stop(now + 0.08);
+            } else if (type === 'drop') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(200, now);
+                osc.frequency.exponentialRampToValueAtTime(100, now + 0.09);
+                gain.gain.setValueAtTime(0.35, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.09);
+                osc.start(now);
+                osc.stop(now + 0.09);
+            } else if (type === 'slash') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(850, now);
+                osc.frequency.exponentialRampToValueAtTime(160, now + 0.2);
+                gain.gain.setValueAtTime(0.4, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            } else if (type === 'gameover') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(260, now);
+                osc.frequency.linearRampToValueAtTime(70, now + 0.45);
+                gain.gain.setValueAtTime(0.35, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.45);
+                osc.start(now);
+                osc.stop(now + 0.45);
+            }
+        }
+
+        // LOGIKA GAME
+        const BOARD_SIZE = 8;
+        const boardElem = document.getElementById('board');
+        const scoreElem = document.getElementById('score');
+        const highScoreElem = document.getElementById('high-score');
+        const holders = document.querySelectorAll('.holder');
+        const effectText = document.getElementById('effect-text');
+
+        let boardState = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
+        let currentPieces = [null, null, null];
+        let score = 0;
+        let highScore = localStorage.getItem('bb_pro_high') || 0;
+        highScoreElem.innerText = highScore;
+
+        const SHAPES = [
+            { shape: [[1]], color: 'c-purple' },
+            { shape: [[1, 1]], color: 'c-cyan' },
+            { shape: [[1], [1]], color: 'c-cyan' },
+            { shape: [[1, 1, 1]], color: 'c-green' },
+            { shape: [[1], [1], [1]], color: 'c-green' },
+            { shape: [[1, 1, 1, 1]], color: 'c-yellow' },
+            { shape: [[1, 1], [1, 1]], color: 'c-orange' },
+            { shape: [[1, 1, 1], [1, 1, 1], [1, 1, 1]], color: 'c-red' },
+            { shape: [[1, 0], [1, 0], [1, 1]], color: 'c-purple' },
+            { shape: [[1, 1, 1], [0, 1, 0]], color: 'c-cyan' },
+            { shape: [[0, 1, 0], [1, 1, 1]], color: 'c-green' },
+            { shape: [[1, 1], [1, 0]], color: 'c-yellow' }
+        ];
+
+        function createBoard() {
+            boardElem.innerHTML = '';
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    boardElem.appendChild(cell);
+                }
+            }
+        }
+
+        function startGame() {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('gameover-screen').classList.add('hidden');
+            boardState = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
+            score = 0;
+            scoreElem.innerText = score;
+            createBoard();
+            renderBoard();
+            spawnPieces();
+        }
+
+        function renderBoard() {
+            const cells = boardElem.children;
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    const idx = r * BOARD_SIZE + c;
+                    const cell = cells[idx];
+                    cell.innerHTML = '';
+                    if (boardState[r][c]) {
+                        const block = document.createElement('div');
+                        block.className = `block-unit ${boardState[r][c]}`;
+                        cell.appendChild(block);
+                    }
+                }
+            }
+        }
+
+        function spawnPieces() {
+            holders.forEach((holder, idx) => {
+                holder.innerHTML = '';
+                const randomObj = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+                currentPieces[idx] = JSON.parse(JSON.stringify(randomObj));
+                renderPieceInHolder(holder, currentPieces[idx], idx);
+            });
+            checkGameOver();
+        }
+
+        function renderPieceInHolder(container, piece, index) {
+            if (!piece) return;
+            const grid = createPieceDOM(piece, 20);
+            container.appendChild(grid);
+            setupDrag(container, index);
+        }
+
+        function createPieceDOM(piece, unitSize) {
+            const grid = document.createElement('div');
+            grid.style.display = 'grid';
+            grid.style.gridTemplateRows = `repeat(${piece.shape.length}, ${unitSize}px)`;
+            grid.style.gridTemplateColumns = `repeat(${piece.shape[0].length}, ${unitSize}px)`;
+            grid.style.gap = '2px';
+
+            for (let r = 0; r < piece.shape.length; r++) {
+                for (let c = 0; c < piece.shape[0].length; c++) {
+                    const wrapper = document.createElement('div');
+                    wrapper.style.width = `${unitSize}px`;
+                    wrapper.style.height = `${unitSize}px`;
+                    if (piece.shape[r][c]) {
+                        const unit = document.createElement('div');
+                        unit.className = `block-unit ${piece.color}`;
+                        wrapper.appendChild(unit);
+                    }
+                    grid.appendChild(wrapper);
+                }
+            }
+            return grid;
+        }
+
+        function setupDrag(holder, index) {
+            let dragElem = null;
+
+            const onStart = (e) => {
+                const piece = currentPieces[index];
+                if (!piece) return;
+
+                playSound('pickup');
+                const p = e.touches ? e.touches[0] : e;
+
+                const boardCellWidth = (boardElem.getBoundingClientRect().width - 16) / BOARD_SIZE;
+                dragElem = document.createElement('div');
+                dragElem.className = 'drag-clone';
+                dragElem.appendChild(createPieceDOM(piece, boardCellWidth));
+                document.body.appendChild(dragElem);
+
+                holder.style.opacity = '0.2';
+                moveDragElem(p.clientX, p.clientY);
+
+                const onMove = (eMove) => {
+                    eMove.preventDefault();
+                    const pm = eMove.touches ? eMove.touches[0] : eMove;
+                    moveDragElem(pm.clientX, pm.clientY);
+                    highlightBoard(pm.clientX, pm.clientY, piece);
+                };
+
+                const onEnd = (eEnd) => {
+                    const pe = eEnd.changedTouches ? eEnd.changedTouches[0] : eEnd;
+                    dropPiece(pe.clientX, pe.clientY, index);
+
+                    if (dragElem) dragElem.remove();
+                    holder.style.opacity = '1';
+                    clearHighlights();
+
+                    window.removeEventListener('mousemove', onMove);
+                    window.removeEventListener('mouseup', onEnd);
+                    window.removeEventListener('touchmove', onMove);
+                    window.removeEventListener('touchend', onEnd);
+                };
+
+                window.addEventListener('mousemove', onMove);
+                window.addEventListener('mouseup', onEnd);
+                window.addEventListener('touchmove', onMove, { passive: false });
+                window.addEventListener('touchend', onEnd);
+            };
+
+            holder.onmousedown = onStart;
+            holder.ontouchstart = onStart;
+        }
+
+        function moveDragElem(x, y) {
+            const dragElem = document.querySelector('.drag-clone');
+            if (dragElem) {
+                dragElem.style.left = `${x}px`;
+                dragElem.style.top = `${y - 15}px`;
+            }
+        }
+
+        function getTargetCell(x, y, piece) {
+            const rect = boardElem.getBoundingClientRect();
+            if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) return null;
+
+            const cellSize = rect.width / BOARD_SIZE;
+            const pieceRows = piece.shape.length;
+            const pieceCols = piece.shape[0].length;
+
+            const col = Math.floor((x - rect.left - (pieceCols * cellSize / 2) + (cellSize / 2)) / cellSize);
+            const row = Math.floor((y - rect.top - (pieceRows * cellSize / 2) + (cellSize / 2)) / cellSize);
+
+            return { row: Math.max(0, Math.min(BOARD_SIZE - pieceRows, row)), col: Math.max(0, Math.min(BOARD_SIZE - pieceCols, col)) };
+        }
+
+        function canPlace(piece, startRow, startCol) {
+            for (let r = 0; r < piece.shape.length; r++) {
+                for (let c = 0; c < piece.shape[r].length; c++) {
+                    if (piece.shape[r][c]) {
+                        const tr = startRow + r;
+                        const tc = startCol + c;
+                        if (tr < 0 || tr >= BOARD_SIZE || tc < 0 || tc >= BOARD_SIZE) return false;
+                        if (boardState[tr][tc] !== null) return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        function highlightBoard(x, y, piece) {
+            clearHighlights();
+            const target = getTargetCell(x, y, piece);
+            if (target && canPlace(piece, target.row, target.col)) {
+                const cells = boardElem.children;
+                for (let r = 0; r < piece.shape.length; r++) {
+                    for (let c = 0; c < piece.shape[r].length; c++) {
+                        if (piece.shape[r][c]) {
+                            const idx = (target.row + r) * BOARD_SIZE + (target.col + c);
+                            cells[idx].classList.add('highlight');
+                        }
+                    }
+                }
+            }
+        }
+
+        function clearHighlights() {
+            document.querySelectorAll('.cell.highlight').forEach(el => el.classList.remove('highlight'));
+        }
+
+        function dropPiece(x, y, pieceIndex) {
+            const piece = currentPieces[pieceIndex];
+            const target = getTargetCell(x, y, piece);
+
+            if (target && canPlace(piece, target.row, target.col)) {
+                playSound('drop');
+                for (let r = 0; r < piece.shape.length; r++) {
+                    for (let c = 0; c < piece.shape[r].length; c++) {
+                        if (piece.shape[r][c]) {
+                            boardState[target.row + r][target.col + c] = piece.color;
+                        }
+                    }
+                }
+
+                currentPieces[pieceIndex] = null;
+                holders[pieceIndex].innerHTML = '';
+
+                score += piece.shape.flat().filter(v => v === 1).length * 10;
+                renderBoard();
+                checkClears();
+
+                if (currentPieces.every(p => p === null)) {
+                    spawnPieces();
+                } else {
+                    checkGameOver();
+                }
+            }
+        }
+
+        function checkClears() {
+            let rowsToClear = [];
+            let colsToClear = [];
+
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                if (boardState[r].every(c => c !== null)) rowsToClear.push(r);
+            }
+
+            for (let c = 0; c < BOARD_SIZE; c++) {
+                let full = true;
+                for (let r = 0; r < BOARD_SIZE; r++) {
+                    if (boardState[r][c] === null) { full = false; break; }
+                }
+                if (full) colsToClear.push(c);
+            }
+
+            const totalLines = rowsToClear.length + colsToClear.length;
+
+            if (totalLines > 0) {
+                playSound('slash');
+
+                rowsToClear.forEach(r => {
+                    const slash = document.createElement('div');
+                    slash.className = 'slash-h';
+                    slash.style.top = `${r * 12.5}%`;
+                    boardElem.appendChild(slash);
+                    setTimeout(() => slash.remove(), 300);
+
+                    for (let c = 0; c < BOARD_SIZE; c++) boardState[r][c] = null;
+                });
+
+                colsToClear.forEach(c => {
+                    const slash = document.createElement('div');
+                    slash.className = 'slash-v';
+                    slash.style.left = `${c * 12.5}%`;
+                    boardElem.appendChild(slash);
+                    setTimeout(() => slash.remove(), 300);
+
+                    for (let r = 0; r < BOARD_SIZE; r++) boardState[r][c] = null;
+                });
+
+                setTimeout(() => {
+                    renderBoard();
+                }, 150);
+
+                score += totalLines * 100;
+                scoreElem.innerText = score;
+
+                if (score > highScore) {
+                    highScore = score;
+                    highScoreElem.innerText = highScore;
+                    localStorage.setItem('bb_pro_high', highScore);
+                }
+
+                showEffectBanner(totalLines >= 2 ? 'AWESOME!' : 'EXCELLENT!');
+            }
+        }
+
+        function showEffectBanner(text) {
+            effectText.innerText = text;
+            effectText.classList.add('show');
+            setTimeout(() => effectText.classList.remove('show'), 700);
+        }
+
+        function checkGameOver() {
+            let movesAvailable = false;
+            for (let p = 0; p < currentPieces.length; p++) {
+                const piece = currentPieces[p];
+                if (!piece) continue;
+
+                for (let r = 0; r < BOARD_SIZE; r++) {
+                    for (let c = 0; c < BOARD_SIZE; c++) {
+                        if (canPlace(piece, r, c)) {
+                            movesAvailable = true;
+                            break;
+                        }
+                    }
+                    if (movesAvailable) break;
+                }
+                if (movesAvailable) break;
+            }
+
+            if (!movesAvailable && currentPieces.some(p => p !== null)) {
+                setTimeout(() => {
+                    playSound('gameover');
+                    document.getElementById('final-score').innerText = score;
+                    document.getElementById('gameover-screen').classList.remove('hidden');
+                }, 500);
+            }
+        }
+
+        createBoard();
+    </script>
+</body>
+</html>
